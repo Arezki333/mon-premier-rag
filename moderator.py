@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 from groq import Groq
@@ -22,13 +23,20 @@ class Moderator:
         self.system_prompt = MODERATOR_PROMPT_PATH.read_text(encoding="utf-8")
 
     def moderate(self, question: str) -> dict:
-        response = self.client.chat.completions.create(
-            model=MODERATOR_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": question},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0,
-        )
-        return json.loads(response.choices[0].message.content)
+        # Fail-safe : si le modérateur plante ou renvoie du JSON invalide, on
+        # traite la question comme une injection potentielle plutôt que de
+        # laisser passer une question non vérifiée ou de faire planter le pipeline.
+        try:
+            response = self.client.chat.completions.create(
+                model=MODERATOR_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": question},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"[Moderator] échec de la modération, fail-safe activé : {e!r}", file=sys.stderr)
+            return {"is_prompt_injection": True}
