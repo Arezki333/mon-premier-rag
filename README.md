@@ -74,3 +74,30 @@ Interceptée par le modérateur ; le LLM de génération n'est jamais appelé.
 
 **4. Question de contrôle** — *"Quelle est la couleur du chat de Bob ?"*
 > Il y a deux chats de Bob mentionnés : Henri, qui est bleu, et Casimir, qui est noir.
+
+## Bonus : comparaison de deux modèles d'embedding
+
+[scripts/compare_embeddings.py](scripts/compare_embeddings.py) indexe le corpus réel avec deux
+modèles multilingues (`distiluse-base-multilingual-cased-v2` et
+`paraphrase-multilingual-mpnet-base-v2`, dans un client ChromaDB éphémère qui ne touche pas à
+`chroma_db/`) et compare leur retrieval sur les mêmes 5 questions :
+
+| Question | distiluse (top-1) | mpnet (top-1) |
+|---|---|---|
+| Couleur du chat de Bob | ✅ bon chunk (0.83) | ✅ bon chunk (0.64) |
+| Sport officiel de Basse-Molette | ✅ bon chunk (0.89) | ✅ bon chunk (0.61) |
+| Boutons de nacre de Bob | ⚠️ chunk hors-sujet en 1ᵉʳ (0.81), la bonne réponse arrive 2ᵉ | ✅ bon chunk en 1ᵉʳ (0.57) |
+| Capitale du Japon (hors corpus) | pas de match pertinent (>1.5) | pas de match pertinent (>1.3) |
+| Naissance de Bob | ✅ bon chunk (1.13) | ✅ bon chunk (0.55) |
+
+Constats :
+- Sur "combien de boutons de nacre", `mpnet` classe en premier le chunk qui contient la réponse
+  chiffrée, alors que `distiluse` classe en premier un chunk lié mais qui ne répond pas vraiment
+  à la question — la seule vraie divergence de classement entre les deux modèles ici.
+- `mpnet` produit des distances systématiquement plus resserrées, mais les échelles ne sont pas
+  directement comparables entre modèles (géométrie d'embedding différente) : ce qui compte, c'est
+  le classement, pas la valeur brute de la distance.
+- Les deux modèles séparent nettement les questions hors corpus (distances > 1.3) des questions
+  dans le corpus — un signal exploitable pour calibrer un seuil d'alerte.
+- `mpnet` est un modèle plus lourd et plus lent à indexer : un compromis qualité/vitesse à
+  trancher selon le cas d'usage.
