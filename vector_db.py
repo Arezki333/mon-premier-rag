@@ -1,4 +1,3 @@
-import uuid
 from typing import List, Optional
 
 import chromadb
@@ -21,9 +20,10 @@ class VectorDB:
         self,
         path: str = CHROMA_DB_PATH,
         collection_name: str = COLLECTION_NAME,
-        chunks: Optional[List[str]] = None,
-        source: str = "corpus",
+        chunks: Optional[List[dict]] = None,
     ):
+        """`chunks`, si fourni, est une liste de dicts {id, text, source, categorie}
+        (voir `data.corpus.load_corpus`)."""
         self.client = chromadb.PersistentClient(path=path)
 
         try:
@@ -44,12 +44,16 @@ class VectorDB:
                 metadata={"embedding_model": embedding_model_name},
             )
 
-            embeddings = self._encode(chunks, show_progress_bar=True)
-            ids = [str(uuid.uuid4()) for _ in chunks]
-            metadatas = [{"source": source} for _ in chunks]
+            texts = [chunk["text"] for chunk in chunks]
+            embeddings = self._encode(texts, show_progress_bar=True)
+            ids = [chunk["id"] for chunk in chunks]
+            metadatas = [
+                {"source": chunk["source"], "categorie": chunk["categorie"]}
+                for chunk in chunks
+            ]
             self.collection.add(
                 ids=ids,
-                documents=chunks,
+                documents=texts,
                 embeddings=embeddings.tolist(),
                 metadatas=metadatas,
             )
