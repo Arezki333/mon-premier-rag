@@ -1,4 +1,5 @@
 EMBEDDING_MODEL_NAME = "distiluse-base-multilingual-cased-v2"
+MODERATOR_MODEL_NAME = "openai/gpt-oss-safeguard-20b"
 
 CHROMA_DB_PATH = "chroma_db"
 COLLECTION_NAME = "knowledge_base"
